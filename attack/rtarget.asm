@@ -912,7 +912,7 @@ Disassembly of section .text:
   401992:	90                   	nop
   401993:	90                   	nop
 
-0000000000401994 <start_farm>:
+0000000000401994 <start_farm>: # gadget from here
   401994:	b8 01 00 00 00       	mov    $0x1,%eax
   401999:	c3                   	retq   
 
@@ -1084,7 +1084,7 @@ Disassembly of section .text:
   401aab:	c7 07 48 89 e0 90    	movl   $0x90e08948,(%rdi)
   401ab1:	c3                   	retq   
 
-0000000000401ab2 <end_farm>:
+0000000000401ab2 <end_farm>: # gadget choosen range end from here
   401ab2:	b8 01 00 00 00       	mov    $0x1,%eax
   401ab7:	c3                   	retq   
   401ab8:	90                   	nop

