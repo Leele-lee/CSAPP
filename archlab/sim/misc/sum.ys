@@ -1,0 +1,46 @@
+# set the intial address to 0
+    .pos 0 
+    irmovq stack, %rsp # set the top of the stack
+    call main
+    halt
+
+# sample link list
+    .align 8
+ele1:
+    .quad 0x00a
+    .quad ele2
+ele2:
+    .quad 0x0b0
+    .quad ele3
+ele3:
+    .quad 0x0c00
+    .quad 0
+
+main:
+    irmovq ele1, %rdi # Set the address of the first element (that is, the head pointer of the linked list) as the first parameter
+    call sum_list
+    ret
+
+# long sum_list(list_ptr ls)
+# start in %rdi
+sum_list:
+    irmovq 0, %rax
+    jmp test
+
+loop:
+    mrmovq (%rdi), %rsi # %rsi = ls->value, the current value of the node
+    addq %rsi, %rax
+    mrmovq 8(%rdi), %rdi # %rdi = ls->next, it's a address of the next node
+
+test:
+    andq %rdi, %rdi
+    jne loop
+    ret
+
+# stack starts here and grows to lower addresses
+    .pos 0x200
+stack:
+
+
+
+
