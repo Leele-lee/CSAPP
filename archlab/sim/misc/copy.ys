@@ -1,0 +1,52 @@
+/* copy_block - Copy src to dest and return xor checksum of src */
+
+# Execution begins at address 0
+    .pos 0
+    irmovq stack, %rsp # set up stack pointer
+    call main # execute main program
+    halt # terminate program
+
+# Three element source and destination blocks
+    .align 8
+# Source block
+src:
+    .quad 0x00a
+    .quad 0x0b0
+    .quad 0xc00
+# Destination block
+dest:
+    .quad 0x111
+    .quad 0x222
+    .quad 0x333
+
+main:
+    irmovq src, %rdi
+    irmovq dest, %rsi
+    irmovq $3, %rdx
+    call copy_block
+    ret
+
+copy_block:
+    irmovq $0, %rax
+    irmovq $1, %r8
+    irmovq $8, %r9
+    jmp test
+
+loop:
+    mrmovq (%rdi), %rcx # val = *src
+    addq %r9, %rdi # src++, src+8
+    rmmovq %rcx, (%rsi) # *dest = val
+    addq %r9, %rsi # dest++, dest+8
+    xorq %rcx, %rax # val ^= val
+    subq %r8, %rdx # len -= 1
+
+test:
+    andq %rdx, %rdx
+    jne loop
+    ret
+
+# stack starts here and grows to lower address
+    .pos 0x200
+stack:
+
+
