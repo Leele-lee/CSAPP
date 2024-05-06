@@ -4,7 +4,7 @@
     call main
     halt
 
-# sample link list
+# sample linked list
     .align 8
 ele1:
     .quad 0x00a
