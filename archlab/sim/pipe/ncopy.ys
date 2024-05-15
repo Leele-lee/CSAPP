@@ -128,7 +128,7 @@ handle_remainder_0_to_1:
 	# -2 ~ -1 to -1 ~ 0
 	iaddq $1, %rdx
 	mrmovq (%rdi), %rbx
-	jl handle_remainder_1
+	je handle_remainder_1
 	ret
 
 handle_remainder_7:
