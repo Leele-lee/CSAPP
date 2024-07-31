@@ -19,6 +19,8 @@ set* cache;
 
 int h, v = 0, s, E, b, t, time_stamp = 0;
 unsigned hit = 0, miss = 0, eviction = 0;
+FILE* trace_file;
+char* trace_name = NULL;
 
 void initCache() {
     int i, j;
@@ -39,6 +41,32 @@ void freeCache() {
         free(cache[i]);
     }
     free(cache);
+}
+
+void usingCache(size_t address) {
+
+}
+
+//I 0400d7d4,8
+// M 0421c7f0,4
+// L 04f6b868,8
+// S 7ff0005c8,8
+void replayTrace() {
+    int size;
+    char identifier;
+    size_t address;
+    
+    trace_file = fopen(trace_name, "r");;
+    while (fscanf(trace_file, "%s, %lx, %d", &identifier, &address, &size)) {
+        switch (identifier) {
+            case 'I': continue;
+            case 'L': usingCache(address); break;
+            case 'S': usingCache(address); break;
+            case 'M': usingCache(address); break;
+            default: break;
+        } 
+    }
+    fclose(trace_file);
 }
 
 
@@ -62,7 +90,6 @@ void printUsage() {
 int main(int argc, char* argv[])
 {
     int opt;
-    FILE* trace_file;
     if (argc == 1) {
         printUsage();
         exit(0);
@@ -87,7 +114,7 @@ int main(int argc, char* argv[])
                 b = atoi(optarg);
                 break;
             case 't':
-                trace_file = fopen(optarg, "r");
+                trace_name = optarg;
                 break;
             default:
                 printUsage();
@@ -96,12 +123,14 @@ int main(int argc, char* argv[])
     }
 
     // when somthing go wrong
-    if (s < 0 || E < 0 || b < 0||b + s > 64 || trace_file == NULL) {
+    if (s < 0 || E < 0 || b < 0||b + s > 64 || trace_name == NULL) {
         printUsage();
         exit(1);
     }
 
     initCache();
+    //use cache
+
 
 
    
