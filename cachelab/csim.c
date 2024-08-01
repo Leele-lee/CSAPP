@@ -21,6 +21,7 @@ int h, v = 0, s, E, b, t, time_stamp = 0;
 unsigned hit = 0, miss = 0, eviction = 0;
 FILE* trace_file;
 char* trace_name = NULL;
+int modify = 0;
 
 void initCache() {
     int i, j;
@@ -43,8 +44,54 @@ void freeCache() {
     free(cache);
 }
 
+// properly deal with load, store, modify situation
 void usingCache(size_t address) {
+    int set_index;
+    int tag_index;
+    int i;
+    int min_timestamp_line = 0;
+    int need_eviction = 1; // default need eviction
+    set_index = (address << (s + b)) >> (64 - s);
+    tag_index = (address >> (s + b));
+    set current_set = cache[set_index];
 
+    //check every line in given set, 
+    for (i = 0; i < E; i++) {
+        if (current_set[i].last_used_time < min_timestamp_line) {
+            min_timestamp_line = i;
+        }
+        if (current_set[i].valid == 0) {
+            need_eviction = 0;
+            continue;
+        } else if (tag_index == current_set[i].tag) { 
+            // check t 
+            hit++;
+            if (v = 1) {
+                printf(" hit");
+            }
+            current_set[i].last_used_time = time_stamp++;
+            hit += modify;
+            if (modify) {
+                printf(" hit\n");
+            }
+            return;
+        }
+    }
+    // determine miss or eviction
+    miss++;
+    eviction += need_eviction;
+    if (v && need_eviction && modify) {
+        printf(" miss eviction hit\n");
+    } else if (v && need_eviction) {
+        printf(" miss eviction\n");
+    } else if (v){
+        printf(" miss\n");
+    }
+    hit += modify;
+    // add data into cache line which has the largest timestamp
+    current_set[min_timestamp_line].valid = 1;
+    current_set[min_timestamp_line].tag = tag_index;
+    current_set[min_timestamp_line].last_used_time = time_stamp++;
 }
 
 //I 0400d7d4,8
@@ -58,11 +105,14 @@ void replayTrace() {
     
     trace_file = fopen(trace_name, "r");;
     while (fscanf(trace_file, "%s, %lx, %d", &identifier, &address, &size)) {
+        if (v) {
+            printf("%c, %lx, %d", identifier, address, size);
+        }
         switch (identifier) {
             case 'I': continue;
-            case 'L': usingCache(address); break;
-            case 'S': usingCache(address); break;
-            case 'M': usingCache(address); break;
+            case 'L': usingCache(address); modify = 0; break;
+            case 'S': usingCache(address); modify = 0; break;
+            case 'M': usingCache(address); modify = 1; break;
             default: break;
         } 
     }
@@ -138,4 +188,5 @@ int main(int argc, char* argv[])
 
     printSummary(0, 0, 0);
     return 0;
+
 }
