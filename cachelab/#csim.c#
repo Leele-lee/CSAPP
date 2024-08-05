@@ -1,3 +1,4 @@
+
 #include "cachelab.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -51,13 +52,13 @@ void usingCache(size_t address) {
     int i;
     int min_timestamp_line = 0;
     int need_eviction = 1; // default need eviction
-    set_index = address >> b & ((1 << s) - 1);
-    tag_index = address >> (s + b);
+    set_index = (address << (s + b)) >> (64 - s);
+    tag_index = (address >> (s + b));
     set current_set = cache[set_index];
 
     //check every line in given set, 
     for (i = 0; i < E; i++) {
-        if (current_set[i].last_used_time < current_set[min_timestamp_line].last_used_time) {
+        if (current_set[i].last_used_time < min_timestamp_line) {
             min_timestamp_line = i;
         }
         if (current_set[i].valid == 0) {
@@ -66,11 +67,12 @@ void usingCache(size_t address) {
         } else if (tag_index == current_set[i].tag) { 
             // check t 
             hit++;
-            current_set[i].last_used_time = ++time_stamp;
+            if (v) {
+                printf(" hit");
+            }
+            current_set[i].last_used_time = time_stamp++;
             hit += modify;
-            if (v && modify) {
-                printf(" hit hit\n");
-            } else if (v){
+            if (modify) {
                 printf(" hit\n");
             }
             return;
@@ -83,16 +85,14 @@ void usingCache(size_t address) {
         printf(" miss eviction hit\n");
     } else if (v && need_eviction) {
         printf(" miss eviction\n");
-    } else if (v && modify) {
-        printf(" miss hit\n");
-    } else if (v) {
+    } else if (v){
         printf(" miss\n");
     }
     hit += modify;
     // add data into cache line which has the largest timestamp
     current_set[min_timestamp_line].valid = 1;
     current_set[min_timestamp_line].tag = tag_index;
-    current_set[min_timestamp_line].last_used_time = ++time_stamp;
+    current_set[min_timestamp_line].last_used_time = time_stamp++;
     return;
 }
 
@@ -105,16 +105,16 @@ void replayTrace() {
     char identifier;
     size_t address;
     
-    trace_file = fopen(trace_name, "r");
-    while (fscanf(trace_file, "%s %lx,%d\n", &identifier, &address, &size) == 3) {
+    trace_file = fopen(trace_name, "r");;
+    while (fscanf(trace_file, "%s, %lx, %d", &identifier, &address, &size)) {
         if (v) {
-            printf("%c %lx,%d", identifier, address, size);
+            printf("%c, %lx, %d", identifier, address, size);
         }
         switch (identifier) {
-            //case 'I': continue;
-            case 'L': modify = 0; usingCache(address); break;
-            case 'S': modify = 0; usingCache(address); break;
-            case 'M': modify = 1; usingCache(address); break;
+            case 'I': continue;
+            case 'L': usingCache(address); modify = 0; break;
+            case 'S': usingCache(address); modify = 0; break;
+            case 'M': usingCache(address); modify = 1; break;
             default: break;
         } 
     }
@@ -176,7 +176,7 @@ int main(int argc, char* argv[])
     }
 
     // when somthing go wrong
-    if (s < 0 || E < 0 || b < 0 || b + s > 64 || trace_name == NULL) {
+    if (s < 0 || E < 0 || b < 0||b + s > 64 || trace_name == NULL) {
         printUsage();
         exit(1);
     }
@@ -187,4 +187,4 @@ int main(int argc, char* argv[])
     freeCache();
     printSummary(hit, miss, eviction);
     return 0;
-} 
+}
