@@ -8,9 +8,12 @@
  * on a 1KB direct mapped cache with a block size of 32 bytes.
  */ 
 #include <stdio.h>
+#include <assert.h>
 #include "cachelab.h"
 
 int is_transpose(int M, int N, int A[N][M], int B[M][N]);
+
+
 
 /* 
  * transpose_submit - This is the solution transpose function that you
@@ -20,8 +23,42 @@ int is_transpose(int M, int N, int A[N][M], int B[M][N]);
  *     be graded. 
  */
 char transpose_submit_desc[] = "Transpose submission";
-void transpose_submit(int M, int N, int A[N][M], int B[M][N])
-{
+void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
+    int i, j, k, s, a0, a1, a2, a3, a4, a5, a6, a7;
+    const int len = 8;
+    if (N == 32) {
+         for (i = 0; i < N; i += len) {
+            for (j = 0; j < M; j += len) {
+                for (k = 0; k < len; k++) {
+                    a0 = A[i + k][j];
+                    a1 = A[i + k][j + 1];
+                    a2 = A[i + k][j + 2];
+                    a3 = A[i + k][j + 3];
+                    a4 = A[i + k][j + 4];
+                    a5 = A[i + k][j + 5];
+                    a6 = A[i + k][j + 6];
+                    a7 = A[i + k][j + 7];
+                    B[j + k][i] = a0;
+                    B[j + k][i + 1] = a1;
+                    B[j + k][i + 2] = a2;
+                    B[j + k][i + 3] = a3;
+                    B[j + k][i + 4] = a4;
+                    B[j + k][i + 5] = a5;
+                    B[j + k][i + 6] = a6;
+                    B[j + k][i + 7] = a7;
+                }
+                 // tranpose part of B at position (i, j) of B
+                 for (k = 0; k < len; k++) {
+                    for (s = k + 1; s < len; s++) {
+                        a0 = B[j + k][i + s];
+                        B[j + k][i + s] = B[j + s][i + k];
+                        B[j + s][i + k] = a0;
+                    }
+                 }
+            }
+        }
+    }
+    //assert(is_transpose(M, N, A, B));
 }
 
 /* 
@@ -59,7 +96,7 @@ void registerFunctions()
     registerTransFunction(transpose_submit, transpose_submit_desc); 
 
     /* Register any additional transpose functions */
-    registerTransFunction(trans, trans_desc); 
+    //registerTransFunction(trans, trans_desc); 
 
 }
 
