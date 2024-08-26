@@ -231,6 +231,17 @@ void transpose_submit(int M, int N, int A[N][M], int B[M][N]) {
             }
         }
     }
+    if (M == 61) {
+        for (i = 0; i < N; i += 16) {
+            for (j = 0; j < M; j += 16) {
+                for (k = j; (k < j + 16) && (k < M); k++) {
+                    for (s = i; (s < i + 16) && (s < N); s++) {
+                        B[k][s] = A[s][k];
+                    }
+                }
+            }
+        }
+    }
 }
 
 /* 
