@@ -92,6 +92,7 @@ int mm_init(void)
     /* extend heap by CHUCKSIZE/WSIZE blocks at the end of the four blocks */
     extend_heap(CHUCKSIZE/WSIZE);
 }
+
 /*
  * extend heap by bsize blocks at the end of the old heap
  * 
@@ -115,24 +116,48 @@ static void *extend_heap(size_t words)
     return coalesce(bp);
 } 
 
-void *coalesce(void *bp)
+static void *coalesce(void *bp)
 {
-    /* if the prev and next blocks are both allocated  */
-    /* direct return */
+    size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
+    size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
+    size_t size = GET_SIZE(HDRP(bp));
 
+    /* if the prev and next blocks are both allocated  */
+    if (prev_alloc && next_alloc) {
+    /* direct return */
+        return bp;
+    }
     /* if only the next block is free */
-    /* newsize = current block size + next block size */
-    /* change the size of current block header and next block footer */
+    else if (prev_alloc) {
+        /* newsize = current block size + next block size */
+        size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        /* change the size of current block header and new block footer */
+        PUT(HDRP(bp), size);                               // before and after coalescing, bp is not changed
+        PUT(FTRP(bp), size);                               // only the header size had been changed, so the footer is the new address          
+    }
 
     /* if only the previous block is free */
-    /* newsize = current size + previous size */
-    /* change the size of previous header and current footer */
-    /* bp point to the previous block's payload */
+    else if (next_alloc) {
+        /* newsize = current size + previous size */
+        size += GET_SIZE(FTRP(PREV_BLKP(bp)));
+        /* change the size of previous header and current footer */
+        PUT(FTRP(bp), size);
+        PUT(HDRP(PREV_BLKP(bp)), size);
+        /* bp point to the previous block's payload */
+        bp = PREV_BLKP(bp);
+    }
 
-    /* if the prev and next blocks are both free *?
-    /* newsize = previous size + current size + next size */
-    /* change the size of previous header and the next footer */
-    /* bp point to the previous block's payload */
+    /* if the prev and next blocks are both free */
+    else {
+        /* newsize = previous size + current size + next size */
+        size += GET_SIZE(FTRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
+        /* change the size of previous header and the next footer */
+        PUT(HDRP(PREV_BLKP(bp)), size);
+        PUT(FTRP(NEXT_BLKP(bp)), size);
+        /* bp point to the previous block's payload */
+        bp = PREV_BLKP(bp);
+    }
+    return bp;
 }
 
 /* 
