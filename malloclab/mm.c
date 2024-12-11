@@ -95,7 +95,9 @@ int mm_init(void)
 
 /*
  * extend heap by bsize blocks at the end of the old heap
- * 
+ * Use in tw circumstances:
+ * 1. when the heap is initialized
+ * 2. when mm_malloc is unable to find a suitable fit
  */
 static void *extend_heap(size_t words)
 {
@@ -105,7 +107,7 @@ static void *extend_heap(size_t words)
     asize = (words % 2) ? (words+1) * WSIZE : words * WSIZE;                    // size is bytes
     /* request words blocks from memory and return bp */
     if (bp = mem_sbrk(asize) == (char *)(-1))
-        return -1;
+        return NULL;
     /* set current bp's header to (words*WSIZE)/0(new free block header) */
     PUT(HDRP(bp), PACK(asize, 0));
     /* set current bp's footer to (words*WSIZE)/0(new free block footer) */
@@ -166,14 +168,75 @@ static void *coalesce(void *bp)
  */
 void *mm_malloc(size_t size)
 {
-    int newsize = ALIGN(size + SIZE_T_SIZE);
-    void *p = mem_sbrk(newsize);
-    if (p == (void *)-1)
-	return NULL;
-    else {
-        *(size_t *)p = size;
-        return (void *)((char *)p + SIZE_T_SIZE);
+    size_t asize;
+    size_t extendsize;
+    char *bp;
+
+    if (size == 0)
+        return NULL;
+    /* adjust the size to the multiple of 8 bytes asize */
+    /* if size < 8, asize = 16 */
+    if (size <= DSIZE) {
+        asize = 2 * DSIZE;
+    } else {
+        asize = 2 * DSIZE + ((size + (DSIZE - 1)) / DSIZE) * DSIZE;      // make sure we get correct answer
     }
+
+    /* find if the free list has a free block can hold asize(find_fit) */
+    if (bp = find_fit(asize) != NULL) {
+        place(bp, asize);     
+        return bp;
+    }
+    /* if not find call extend_heap, put this request block to the new free block */
+    extendsize = MAX(asize, CHUCKSIZE);
+    if (bp = extend_heap(extendsize) != NULL) {
+        /*  put this request block to the fit free block and splitting the block 
+        if rest block is satisfy the minimum request (16 bytes?) */
+        place(bp, asize);
+    } else {
+        return NULL;
+    }
+    return bp;
+}
+
+/* 
+ * Search the free list for a suitable free block.
+ * first try --- first fit
+ * Search list from beginning, choose first free block that fits.
+ */
+static void *find_fit(size_t size) {
+    char *bp;
+    
+    /* from heap_listp to the end check evey block size */
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+        /* if block size >= size and not allocated, return current pointer */
+        if (GET_ALLOC(HDRP(bp)) && (HDRP(bp)) >= size) {
+            return bp;
+        }
+    }
+    /* if not find, return NULL */
+    return NULL;
+}
+
+/* 
+ * best fit, Search the list, choose the best free block: fits, with fewest bytes left over
+ */
+ static void *find_bestfit(size_t size) {
+    /* set minsizebp = NULL */
+    /* from the beginning of the list to the end */
+        /* if current block is free and current block size >= size */
+            /* if minisizebp == NULL set minsizebp = bp(aka current block size) */
+            /* if != NULL, bp is the smallest block size's bp */
+    /* return bp */
+
+ }
+
+/*
+ * Place the request block ans optionally splits the excess if rest block is satisfy 
+ * the minimum request (16 bytes?) then returns the address of the newly allocated block. 
+ */
+static void *place(void *bp, size_t size) {
+    return;
 }
 
 /*
