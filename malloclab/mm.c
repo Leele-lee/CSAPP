@@ -41,6 +41,7 @@ team_t team = {
 #define CHUCKSIZE (1<<12) /* extend heap by this amount (bytes) */
 
 #define MAX(x, y) ((x) < (y) ? (y) : (x))
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
 
 /* Pack a size and alloctated bit into a word */
 #define PACK(size, alloc) ((size) | (alloc))
@@ -210,7 +211,7 @@ static void *find_fit(size_t size) {
     /* from heap_listp to the end check evey block size */
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         /* if block size >= size and not allocated, return current pointer */
-        if (GET_ALLOC(HDRP(bp)) && (HDRP(bp)) >= size) {
+        if (GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= size) {
             return bp;
         }
     }
@@ -223,12 +224,26 @@ static void *find_fit(size_t size) {
  */
  static void *find_bestfit(size_t size) {
     /* set minsizebp = NULL */
-    /* from the beginning of the list to the end */
-        /* if current block is free and current block size >= size */
-            /* if minisizebp == NULL set minsizebp = bp(aka current block size) */
-            /* if != NULL, bp is the smallest block size's bp */
-    /* return bp */
+    char *minsizebp = NULL;
+    char *bp;
 
+    /* from the beginning of the list to the end */
+    for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+        /* if current block is free and current block size >= size */
+        if (GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= size) {
+            /* if minisizebp == NULL set minsizebp = bp(aka current block size) */
+            if (minsizebp == NULL) {
+                minsizebp = bp;
+            } else {
+                /* if != NULL, minisizebp is the smallest block size's bp */
+                if (GET_SIZE(HDRP(minsizebp)) >= GET_SIZE(HDRP(bp))) {
+                    minsizebp = bp;
+                }
+            }
+        }
+    }
+    /* return bp */
+    return minsizebp;
  }
 
 /*
