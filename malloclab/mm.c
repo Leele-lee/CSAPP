@@ -262,8 +262,6 @@ static void *find_next_fit(size_t size) {
     return minsizebp;
  }
 
- 
-
 /*
  * Place the request block and optionally splits the excess if rest block is satisfy 
  * the minimum request (16 bytes?) then returns the address of the newly allocated block. 
@@ -292,6 +290,15 @@ static void place(void *bp, size_t size) {
  */
 void mm_free(void *ptr)
 {
+    size_t size;
+    if (ptr == NULL)
+        return; 
+    size = GET_SIZE(HDRP(ptr));
+    /* change the allocated bit of bp's header and footer */
+    PUT(HDRP(ptr), PACK(size, 0));
+    PUT(FTRP(ptr), PACK(size, 0));
+    /* coalescing bp */
+    coalesce(ptr);
 }
 
 /*
