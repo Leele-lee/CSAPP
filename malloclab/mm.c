@@ -265,11 +265,26 @@ static void *find_next_fit(size_t size) {
  
 
 /*
- * Place the request block ans optionally splits the excess if rest block is satisfy 
+ * Place the request block and optionally splits the excess if rest block is satisfy 
  * the minimum request (16 bytes?) then returns the address of the newly allocated block. 
  */
-static void *place(void *bp, size_t size) {
-    return;
+static void place(void *bp, size_t size) {
+    /* set minisizefree = 2 * DSIZE */
+    size_t splitsize = 2 * DSIZE;
+    size_t difsize = GET_SIZE(HDRP(bp)) - size;
+    /* if bp block size - size >= minisizefree split, change bp's header and footer's 
+    allocated bit and size, next block's header and footer's size(block size - size). */
+    if (difsize >= splitsize) {
+        PUT(HDRP(bp), PACK(size, 1));
+        PUT(FTRP(bp), PACK(size, 1));
+
+        PUT(HDRP(NEXT_BLKP(bp)), PACK(difsize, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(difsize, 0));
+    } else {
+        /* if block size - size < minisizefree not split, just change bp's header and footer's allocate bit and size */
+        PUT(HDRP(bp), PACK(size, 1));
+        PUT(FTRP(bp), PACK(size, 1));
+    }
 }
 
 /*
