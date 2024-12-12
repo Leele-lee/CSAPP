@@ -63,8 +63,8 @@ team_t team = {
 #define PREV_BLKP(bp) ((char *)(bp) - GET_SIZE(((char *)(bp) - DSIZE)))
 
 /* Piravate global variables */
-static char * heap_listp;
-
+static char *heap_listp;
+static char *rover;                                                       // used for next fit rover
 
 /* single word (4) or double word (8) alignment */
 #define ALIGNMENT 8
@@ -89,7 +89,7 @@ int mm_init(void)
     PUT(heap_listp + 3 * WSIZE, PACK(0, 1));
 
     heap_listp += DSIZE;
-
+    rover = heap_listp;                              // set for next fit
     /* extend heap by CHUCKSIZE/WSIZE blocks at the end of the four blocks */
     extend_heap(CHUCKSIZE/WSIZE);
 }
@@ -172,7 +172,6 @@ void *mm_malloc(size_t size)
     size_t asize;
     size_t extendsize;
     char *bp;
-
     if (size == 0)
         return NULL;
     /* adjust the size to the multiple of 8 bytes asize */
@@ -207,7 +206,6 @@ void *mm_malloc(size_t size)
  */
 static void *find_fit(size_t size) {
     char *bp;
-    
     /* from heap_listp to the end check evey block size */
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         /* if block size >= size and not allocated, return current pointer */
@@ -219,10 +217,28 @@ static void *find_fit(size_t size) {
     return NULL;
 }
 
+ /*
+  * next fit - like first fit but search list starting where previous search finished
+  *
+  */
+static void *find_next_fit(size_t size) {
+    char *bp;
+    /* from roverbp to the end */
+    for (bp = rover; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
+        /* if not allocated and block size >= size, set rover to the next bp and return current pointer */
+        if (GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= size) {
+            rover = bp;
+            return bp;
+        }
+    }
+    /* if not find, return NULL */
+    return NULL;
+}
+
 /* 
  * best fit, Search the list, choose the best free block: fits, with fewest bytes left over
  */
- static void *find_bestfit(size_t size) {
+ static void *find_best_fit(size_t size) {
     /* set minsizebp = NULL */
     char *minsizebp = NULL;
     char *bp;
@@ -245,6 +261,8 @@ static void *find_fit(size_t size) {
     /* return bp */
     return minsizebp;
  }
+
+ 
 
 /*
  * Place the request block ans optionally splits the excess if rest block is satisfy 
