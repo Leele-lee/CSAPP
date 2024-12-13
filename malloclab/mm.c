@@ -301,6 +301,24 @@ void mm_free(void *ptr)
     coalesce(ptr);
 }
 
+void mm_nextfit_free(void *ptr) {
+    char *bp;
+    size_t size;
+    if (ptr == NULL)
+        return;
+    size = GET_SIZE(HD(ptr));
+    /* change allocated bit of ptr's header and footer */
+    PUT(HDRP(ptr), PACK(size, 0));
+    PUT(FTRP(ptr), PACK(size, 0));
+
+    /* bp = coalescing ptr */
+    bp = coalesce(ptr);
+    /* if rover == (char *)ptr and bp is point to the previous block, 
+    set rover point to the previous block  */
+    if ((rover == (char *)ptr) && (bp == PREV_BLKP(ptr)))
+        rover = bp;
+}
+
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  */
