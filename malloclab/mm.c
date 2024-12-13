@@ -306,7 +306,7 @@ void mm_nextfit_free(void *ptr) {
     size_t size;
     if (ptr == NULL)
         return;
-    size = GET_SIZE(HD(ptr));
+    size = GET_SIZE(HDRP(ptr));
     /* change allocated bit of ptr's header and footer */
     PUT(HDRP(ptr), PACK(size, 0));
     PUT(FTRP(ptr), PACK(size, 0));
