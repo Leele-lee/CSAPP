@@ -72,8 +72,15 @@ static char *rover;                                                       // use
 /* rounds up to the nearest multiple of ALIGNMENT */
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
 
-
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
+
+/* the prototype of the helper function */
+static inline void *extend_heap(size_t words);
+static inline void *coalesce(void *bp);
+static inline void *find_fit(size_t size);
+static inline void *find_next_fit(size_t size);
+static inline void *find_best_fit(size_t size);
+static inline void place(void *bp, size_t size);
 
 /* 
  * mm_init - initialize the malloc package.
@@ -100,7 +107,7 @@ int mm_init(void)
  * 1. when the heap is initialized
  * 2. when mm_malloc is unable to find a suitable fit
  */
-static void *extend_heap(size_t words)
+static inline void *extend_heap(size_t words)
 {
     char * bp;
     size_t asize;
@@ -119,7 +126,7 @@ static void *extend_heap(size_t words)
     return coalesce(bp);
 } 
 
-static void *coalesce(void *bp)
+static inline void *coalesce(void *bp)
 {
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
@@ -204,7 +211,7 @@ void *mm_malloc(size_t size)
  * first try --- first fit
  * Search list from beginning, choose first free block that fits.
  */
-static void *find_fit(size_t size) {
+static inline void *find_fit(size_t size) {
     char *bp;
     /* from heap_listp to the end check evey block size */
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
@@ -221,7 +228,7 @@ static void *find_fit(size_t size) {
   * next fit - like first fit but search list starting where previous search finished
   *
   */
-static void *find_next_fit(size_t size) {
+static inline void *find_next_fit(size_t size) {
     char *bp;
     /* from roverbp to the end */
     for (bp = rover; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
@@ -238,7 +245,7 @@ static void *find_next_fit(size_t size) {
 /* 
  * best fit, Search the list, choose the best free block: fits, with fewest bytes left over
  */
- static void *find_best_fit(size_t size) {
+ static inline void *find_best_fit(size_t size) {
     /* set minsizebp = NULL */
     char *minsizebp = NULL;
     char *bp;
@@ -266,7 +273,7 @@ static void *find_next_fit(size_t size) {
  * Place the request block and optionally splits the excess if rest block is satisfy 
  * the minimum request (16 bytes?) then returns the address of the newly allocated block. 
  */
-static void place(void *bp, size_t size) {
+static inline void place(void *bp, size_t size) {
     /* set minisizefree = 2 * DSIZE */
     size_t splitsize = 2 * DSIZE;
     size_t difsize = GET_SIZE(HDRP(bp)) - size;
