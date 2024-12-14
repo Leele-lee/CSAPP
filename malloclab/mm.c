@@ -88,7 +88,7 @@ static inline void place(void *bp, size_t size);
 int mm_init(void)
 {
     /* request 4 blocks from memory */
-    if (heap_listp = mem_sbrk(4 * WSIZE) == (void *)-1)
+    if ((heap_listp = mem_sbrk(4 * WSIZE)) == (void *)-1)
         return -1;
     PUT(heap_listp, 0);
     PUT(heap_listp + WSIZE, PACK(8, 1));
@@ -98,7 +98,9 @@ int mm_init(void)
     heap_listp += DSIZE;
     rover = heap_listp;                              // set for next fit
     /* extend heap by CHUCKSIZE/WSIZE blocks at the end of the four blocks */
-    extend_heap(CHUCKSIZE/WSIZE);
+    if (extend_heap(CHUCKSIZE/WSIZE) == NULL)
+        return -1;
+    return 0;
 }
 
 /*
@@ -114,7 +116,7 @@ static inline void *extend_heap(size_t words)
     /* extent words must round up to even numbers to maintain alignment */
     asize = (words % 2) ? (words+1) * WSIZE : words * WSIZE;                    // size is bytes
     /* request words blocks from memory and return bp */
-    if (bp = mem_sbrk(asize) == (char *)(-1))
+    if ((bp = mem_sbrk(asize)) == (char *)(-1))
         return NULL;
     /* set current bp's header to (words*WSIZE)/0(new free block header) */
     PUT(HDRP(bp), PACK(asize, 0));
@@ -190,13 +192,13 @@ void *mm_malloc(size_t size)
     }
 
     /* find if the free list has a free block can hold asize(find_fit) */
-    if (bp = find_fit(asize) != NULL) {
+    if ((bp = find_fit(asize)) != NULL) {
         place(bp, asize);     
         return bp;
     }
     /* if not find call extend_heap, put this request block to the new free block */
     extendsize = MAX(asize, CHUCKSIZE);
-    if (bp = extend_heap(extendsize) != NULL) {
+    if ((bp = extend_heap(extendsize)) != NULL) {
         /*  put this request block to the fit free block and splitting the block 
         if rest block is satisfy the minimum request (16 bytes?) */
         place(bp, asize);
