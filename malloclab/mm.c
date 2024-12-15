@@ -48,7 +48,7 @@ team_t team = {
 
 /* Read and write a word(bytes) at address P */
 #define GET(p) (*(unsigned int *)(p))
-#define PUT(p, val) ((*(unsigned int *)(p)) = val)
+#define PUT(p, val) ((*(unsigned int *)(p)) = (val))
 
 /* Read the size and allocated fileds from address P */
 #define GET_SIZE(p) (GET(p) & (~0x7))
@@ -95,7 +95,7 @@ int mm_init(void)
     PUT(heap_listp + 2 * WSIZE, PACK(8, 1));
     PUT(heap_listp + 3 * WSIZE, PACK(0, 1));
 
-    heap_listp += DSIZE;
+    heap_listp += (2 * DSIZE);
     rover = heap_listp;                              // set for next fit
     /* extend heap by CHUCKSIZE/WSIZE blocks at the end of the four blocks */
     if (extend_heap(CHUCKSIZE/WSIZE) == NULL)
@@ -123,7 +123,7 @@ static inline void *extend_heap(size_t words)
     /* set current bp's footer to (words*WSIZE)/0(new free block footer) */
     PUT(FTRP(bp), PACK(asize, 0));
     /* set the next block's head to 0/1(new epilogue header) */
-    PUT(NEXT_BLKP(bp), PACK(0,1));
+    PUT(NEXT_BLKP(HDRP(bp)), PACK(0,1));
     /* coalescing bp if the previous block is free */
     return coalesce(bp);
 } 
@@ -140,21 +140,21 @@ static inline void *coalesce(void *bp)
         return bp;
     }
     /* if only the next block is free */
-    else if (prev_alloc) {
+    else if (prev_alloc && !next_alloc) {
         /* newsize = current block size + next block size */
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         /* change the size of current block header and new block footer */
-        PUT(HDRP(bp), size);                               // before and after coalescing, bp is not changed
-        PUT(FTRP(bp), size);                               // only the header size had been changed, so the footer is the new address          
+        PUT(HDRP(bp), PACK(size, 0));                               // before and after coalescing, bp is not changed
+        PUT(FTRP(bp), PACK(size, 0));                               // only the header size had been changed, so the footer is the new address          
     }
 
     /* if only the previous block is free */
-    else if (next_alloc) {
+    else if (next_alloc && !prev_alloc) {
         /* newsize = current size + previous size */
         size += GET_SIZE(FTRP(PREV_BLKP(bp)));
         /* change the size of previous header and current footer */
-        PUT(FTRP(bp), size);
-        PUT(HDRP(PREV_BLKP(bp)), size);
+        PUT(FTRP(bp), PACK(size, 0));
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
         /* bp point to the previous block's payload */
         bp = PREV_BLKP(bp);
     }
@@ -164,8 +164,8 @@ static inline void *coalesce(void *bp)
         /* newsize = previous size + current size + next size */
         size += GET_SIZE(FTRP(PREV_BLKP(bp))) + GET_SIZE(HDRP(NEXT_BLKP(bp)));
         /* change the size of previous header and the next footer */
-        PUT(HDRP(PREV_BLKP(bp)), size);
-        PUT(FTRP(NEXT_BLKP(bp)), size);
+        PUT(HDRP(PREV_BLKP(bp)), PACK(size, 0));
+        PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
         /* bp point to the previous block's payload */
         bp = PREV_BLKP(bp);
     }
@@ -188,12 +188,13 @@ void *mm_malloc(size_t size)
     if (size <= DSIZE) {
         asize = 2 * DSIZE;
     } else {
-        asize = 2 * DSIZE + ((size + (DSIZE - 1)) / DSIZE) * DSIZE;      // make sure we get correct answer
+        asize = DSIZE + ((size + (DSIZE - 1)) / DSIZE) * DSIZE;      // make sure we get correct answer
+        //asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
     }
 
     /* find if the free list has a free block can hold asize(find_fit) */
     if ((bp = find_fit(asize)) != NULL) {
-        place(bp, asize);     
+        place(bp, asize);
         return bp;
     }
     /* if not find call extend_heap, put this request block to the new free block */
@@ -218,7 +219,7 @@ static inline void *find_fit(size_t size) {
     /* from heap_listp to the end check evey block size */
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         /* if block size >= size and not allocated, return current pointer */
-        if (GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= size) {
+        if ((!GET_ALLOC(HDRP(bp))) && GET_SIZE(HDRP(bp)) >= size) {
             return bp;
         }
     }
@@ -235,7 +236,7 @@ static inline void *find_next_fit(size_t size) {
     /* from roverbp to the end */
     for (bp = rover; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         /* if not allocated and block size >= size, set rover to the next bp and return current pointer */
-        if (GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= size) {
+        if ((!GET_ALLOC(HDRP(bp))) && GET_SIZE(HDRP(bp)) >= size) {
             rover = bp;
             return bp;
         }
@@ -255,7 +256,7 @@ static inline void *find_next_fit(size_t size) {
     /* from the beginning of the list to the end */
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         /* if current block is free and current block size >= size */
-        if (GET_ALLOC(HDRP(bp)) && GET_SIZE(HDRP(bp)) >= size) {
+        if ((!GET_ALLOC(HDRP(bp))) && GET_SIZE(HDRP(bp)) >= size) {
             /* if minisizebp == NULL set minsizebp = bp(aka current block size) */
             if (minsizebp == NULL) {
                 minsizebp = bp;
