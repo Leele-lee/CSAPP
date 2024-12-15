@@ -35,6 +35,15 @@ team_t team = {
     ""
 };
 
+ /* If you want debugging output, use the following macro.  When you hand
+  * in, remove the #define DEBUG line. */
+#define DEBUG
+#ifdef DEBUG
+# define dbg_printf(...) printf(__VA_ARGS__)
+#else
+# define dbg_printf(...)
+#endif
+
 /* Basic constants and macros */
 #define WSIZE 4 /* word and header/footer size (bytes)*/
 #define DSIZE 8 /* double word size (bytes) */
@@ -219,7 +228,7 @@ static inline void *find_fit(size_t size) {
     /* from heap_listp to the end check evey block size */
     for (bp = heap_listp; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         /* if block size >= size and not allocated, return current pointer */
-        if ((!GET_ALLOC(HDRP(bp))) && GET_SIZE(HDRP(bp)) >= size) {
+        if ((!GET_ALLOC(HDRP(bp))) && (GET_SIZE(HDRP(bp)) >= size)) {
             return bp;
         }
     }
@@ -301,8 +310,8 @@ static inline void place(void *bp, size_t size) {
 void mm_free(void *ptr)
 {
     size_t size;
-    if (ptr == NULL)
-        return; 
+    if (ptr == 0)
+        return;
     size = GET_SIZE(HDRP(ptr));
     /* change the allocated bit of bp's header and footer */
     PUT(HDRP(ptr), PACK(size, 0));
@@ -348,6 +357,8 @@ void *mm_realloc(void *ptr, size_t size)
     mm_free(oldptr);
     return newptr;
 }
+
+
 
 
 
