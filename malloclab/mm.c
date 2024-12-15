@@ -35,14 +35,15 @@ team_t team = {
     ""
 };
 
- /* If you want debugging output, use the following macro.  When you hand
-  * in, remove the #define DEBUG line. */
+/* 
+ * If you want debugging output, use the following macro.  When you hand
+ * in, remove the #define DEBUG line. 
+ */
 #define DEBUG
-#ifdef DEBUG
-# define dbg_printf(...) printf(__VA_ARGS__)
-#else
-# define dbg_printf(...)
+#ifdef DEBUG 
+# define CHECKHEAP(lineno) printf("%s\n", __func__); mm_checkheap(__LINE__);
 #endif
+
 
 /* Basic constants and macros */
 #define WSIZE 4 /* word and header/footer size (bytes)*/
@@ -358,11 +359,7 @@ void *mm_realloc(void *ptr, size_t size)
     return newptr;
 }
 
-
-
-
-
-
+/* check the correct of the heap */
 
 
 
