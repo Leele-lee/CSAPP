@@ -126,7 +126,7 @@ static inline void *extend_heap(size_t words)
     /* extent words must round up to even numbers to maintain alignment */
     asize = (words % 2) ? (words+1) * WSIZE : words * WSIZE;                    // size is bytes
     /* request words blocks from memory and return bp */
-    if ((bp = mem_sbrk(asize)) == (char *)(-1))
+    if ((long)(bp = mem_sbrk(asize)) == -1)
         return NULL;
     /* set current bp's header to (words*WSIZE)/0(new free block header) */
     PUT(HDRP(bp), PACK(asize, 0));
@@ -233,7 +233,7 @@ static inline void *find_fit(size_t size) {
             return bp;
         }
     }
-    /* if not find, return NULL */
+    /* if not found, return NULL */
     return NULL;
 }
 
@@ -341,8 +341,26 @@ void mm_nextfit_free(void *ptr) {
 
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
+ * if ptr is NULL, call malloc(size) 
+ * if size == 0, call free(ptr) 
+ * if ptr is NULL, call malloc(size)request size bytes memory from heap, 
+ * memcpy min(size, ptr's size) and free ptr return newptr
  */
-void *mm_realloc(void *ptr, size_t size)
+void *mm_realloc(void *ptr, size_t size) 
+{
+    void *newptr;
+    size_t copysize;
+    if ((newptr = mm_malloc(size)) == NULL)
+        return NULL;
+    if (ptr == NULL) 
+        return newptr;
+    copysize = MIN(GET_SIZE(HDRP(ptr)), size);
+    memcpy(newptr, ptr, copysize);
+    mm_free(ptr);
+    return newptr;
+}
+
+void *mm_realloc1(void *ptr, size_t size)
 {
     void *oldptr = ptr;
     void *newptr;
@@ -360,7 +378,25 @@ void *mm_realloc(void *ptr, size_t size)
 }
 
 /* check the correct of the heap */
+void mm_checkheap(int lineno)
+{
+    // get the beginning
+    char *bp = mem_heap_lo;
+    //check the start 
+    if (GET(bp != 0)) {
+        printf("[%d] Prologue Error: word before prolofue incorrect at %p\n", lineno, bp);
+    }
 
+    // check prologue's header and footer
+    if (GET(bp + WSIZE) != PACK(DSIZE, 1)) {
+        printf("[%d] Prologue Error: prologue's header incorrect at %p/n", lineno, bp);
+    }
+    if (GET(bp + DSIZE) != PACK(DSIZE, 1)) {
+        printf("[%d] Prologue Error: prologue's footer incorrect at %p/n", lineno, bp);
+    }
+
+
+}
 
 
 
