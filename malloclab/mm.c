@@ -105,7 +105,7 @@ int mm_init(void)
     PUT(heap_listp + 2 * WSIZE, PACK(8, 1));
     PUT(heap_listp + 3 * WSIZE, PACK(0, 1));
 
-    heap_listp += (2 * DSIZE);
+    heap_listp += (2 * WSIZE);
     rover = heap_listp;                              // set for next fit
     /* extend heap by CHUCKSIZE/WSIZE blocks at the end of the four blocks */
     if (extend_heap(CHUCKSIZE/WSIZE) == NULL)
@@ -381,9 +381,9 @@ void *mm_realloc1(void *ptr, size_t size)
 void mm_checkheap(int lineno)
 {
     // get the beginning
-    char *bp = mem_heap_lo;
+    char *bp = mem_heap_lo();
     //check the start 
-    if (GET(bp != 0)) {
+    if (GET(bp) != 0) {
         printf("[%d] Prologue Error: word before prolofue incorrect at %p\n", lineno, bp);
     }
 
@@ -394,8 +394,6 @@ void mm_checkheap(int lineno)
     if (GET(bp + DSIZE) != PACK(DSIZE, 1)) {
         printf("[%d] Prologue Error: prologue's footer incorrect at %p/n", lineno, bp);
     }
-
-
 }
 
 
