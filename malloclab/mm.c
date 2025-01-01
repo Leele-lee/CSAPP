@@ -35,6 +35,8 @@ team_t team = {
     ""
 };
 
+void mm_checkheap(int lineno);
+
 /* 
  * If you want debugging output, use the following macro.  When you hand
  * in, remove the #define DEBUG line. 
@@ -80,9 +82,11 @@ static char *rover;                                                       // use
 #define ALIGNMENT 8
 
 /* rounds up to the nearest multiple of ALIGNMENT */
-#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+//#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+#define ALIGN(p) (((size_t)(p) + (ALIGNMENT-1)) & ~0x7)
 
 #define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
+#define CHECK_ALIGN(p) ((size_t)(p) == ALIGN(p))
 
 /* the prototype of the helper function */
 static inline void *extend_heap(size_t words);
@@ -91,6 +95,7 @@ static inline void *find_fit(size_t size);
 static inline void *find_next_fit(size_t size);
 static inline void *find_best_fit(size_t size);
 static inline void place(void *bp, size_t size);
+
 
 /* 
  * mm_init - initialize the malloc package.
@@ -110,12 +115,13 @@ int mm_init(void)
     /* extend heap by CHUCKSIZE/WSIZE blocks at the end of the four blocks */
     if (extend_heap(CHUCKSIZE/WSIZE) == NULL)
         return -1;
+    CHECKHEAP(__LINE__);
     return 0;
 }
 
 /*
  * extend heap by bsize blocks at the end of the old heap
- * Use in tw circumstances:
+ * Use in two circumstances:
  * 1. when the heap is initialized
  * 2. when mm_malloc is unable to find a suitable fit
  */
@@ -133,7 +139,7 @@ static inline void *extend_heap(size_t words)
     /* set current bp's footer to (words*WSIZE)/0(new free block footer) */
     PUT(FTRP(bp), PACK(asize, 0));
     /* set the next block's head to 0/1(new epilogue header) */
-    PUT(NEXT_BLKP(HDRP(bp)), PACK(0,1));
+    PUT(HDRP(NEXT_BLKP(bp)), PACK(0,1));
     /* coalescing bp if the previous block is free */
     return coalesce(bp);
 } 
@@ -179,6 +185,7 @@ static inline void *coalesce(void *bp)
         /* bp point to the previous block's payload */
         bp = PREV_BLKP(bp);
     }
+    
     return bp;
 }
 
@@ -200,16 +207,23 @@ void *mm_malloc(size_t size)
     } else {
         asize = DSIZE + ((size + (DSIZE - 1)) / DSIZE) * DSIZE;      // make sure we get correct answer
         //asize = DSIZE * ((size + (DSIZE) + (DSIZE-1)) / DSIZE);
-    }
+        printf("size: %zu\n", size);
+        printf("DSIZE: %zu\n", DSIZE);
+        printf("(size + (DSIZE - 1)): %zu\n", size + (DSIZE - 1));
+        printf("((size + (DSIZE - 1)) / DSIZE): %zu\n", (size + (DSIZE - 1)) / DSIZE);
+        printf("asize: %zu\n", asize);
 
+    }
+    
     /* find if the free list has a free block can hold asize(find_fit) */
     if ((bp = find_fit(asize)) != NULL) {
+        CHECKHEAP(__LINE__);
         place(bp, asize);
         return bp;
     }
     /* if not find call extend_heap, put this request block to the new free block */
     extendsize = MAX(asize, CHUCKSIZE);
-    if ((bp = extend_heap(extendsize)) != NULL) {
+    if ((bp = extend_heap(extendsize / WSIZE)) != NULL) {
         /*  put this request block to the fit free block and splitting the block 
         if rest block is satisfy the minimum request (16 bytes?) */
         place(bp, asize);
@@ -296,8 +310,11 @@ static inline void place(void *bp, size_t size) {
         PUT(HDRP(bp), PACK(size, 1));
         PUT(FTRP(bp), PACK(size, 1));
 
-        PUT(HDRP(NEXT_BLKP(bp)), PACK(difsize, 0));
-        PUT(FTRP(NEXT_BLKP(bp)), PACK(difsize, 0));
+        //PUT(HDRP(NEXT_BLKP(bp)), PACK(difsize, 0));
+        //PUT(FTRP(NEXT_BLKP(bp)), PACK(difsize, 0));
+        bp = NEXT_BLKP(bp);
+        PUT(HDRP(bp), PACK(difsize, 0));
+        PUT(FTRP(bp), PACK(difsize, 0));
     } else {
         /* if block size - size < minisizefree not split, just change bp's header and footer's allocate bit and size */
         PUT(HDRP(bp), PACK(size, 1));
@@ -319,6 +336,7 @@ void mm_free(void *ptr)
     PUT(FTRP(ptr), PACK(size, 0));
     /* coalescing bp */
     coalesce(ptr);
+    CHECKHEAP(__LINE__);
 }
 
 void mm_nextfit_free(void *ptr) {
@@ -385,14 +403,75 @@ void mm_checkheap(int lineno)
     //check the start 
     if (GET(bp) != 0) {
         printf("[%d] Prologue Error: word before prolofue incorrect at %p\n", lineno, bp);
+        exit(0);
     }
 
     // check prologue's header and footer
     if (GET(bp + WSIZE) != PACK(DSIZE, 1)) {
-        printf("[%d] Prologue Error: prologue's header incorrect at %p/n", lineno, bp);
+        printf("[%d] Prologue Error: prologue's header incorrect at %p\n", lineno, bp);
+        exit(0);
     }
     if (GET(bp + DSIZE) != PACK(DSIZE, 1)) {
-        printf("[%d] Prologue Error: prologue's footer incorrect at %p/n", lineno, bp);
+        printf("[%d] Prologue Error: prologue's footer incorrect at %p\n", lineno, bp);
+        exit(0);
+    }
+
+    // move bp point to the effective part of the blocks that next to the prologue block
+    bp += 2 * DSIZE;
+
+    int is_prev_free = 0;
+
+    while ((void *)bp < mem_heap_hi()) {
+        // check the block's alignment
+        if (!CHECK_ALIGN(bp)) {
+            printf("[%d] Align Error: block not align at %p\n", lineno, bp);
+            exit(0);
+        }
+
+        //check block head and footer information of the block are the same
+        if (GET(HDRP(bp)) != GET(FTRP(bp))) {
+            printf("[%d] Block Error: block header and footer are not matched at %p\n", lineno, bp);
+            exit(0);
+        }
+
+        //check the allocated block head and footer information of the block are the same
+        if (GET_ALLOC(bp) == 1) {
+            //except for the epilogue block, the block size is not allowed to be 0
+            if (GET_SIZE(bp) == 0) {
+                printf("[%d] Block Error: block size is illegal at %p\n", lineno, bp);
+                exit(0);
+            }
+            is_prev_free = 0;
+        }
+
+        // check the unalloocated block 
+        if (!GET_ALLOC(bp)) {
+            // make sure no continuous free blocks by checking the next block's allocated state
+            if (is_prev_free) {
+                printf("[%d] List Error: contiguous free block is not allowed at %p\n", lineno, bp);
+                exit(0);
+            }
+            is_prev_free =1;
+        }
+
+        bp = NEXT_BLKP(bp);
+    }
+    //check the imformation about epilogue block
+    if (GET(HDRP(bp)) != PACK(0, 1)) {
+        printf("[%d] Epilogue Error: the information of epilogue block is incorrect at %p\n", lineno, bp);
+        exit(0);
+    }
+
+    // make sure the curent bp is not beyond the boudary of heap
+    if ((void *)bp > mem_heap_hi() + 1) {
+        printf("[%d] Heap Error: point beyond the heap boudary at %p\n", lineno, bp);
+        exit(0);
+    }
+
+    // check the alignment again 
+    if (!CHECK_ALIGN(bp)) {
+        printf("[%d] Align Error: block not align at %p\n", lineno, bp);
+        exit(0);
     }
 }
 
