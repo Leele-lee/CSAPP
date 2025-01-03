@@ -271,7 +271,7 @@ static inline void *find_next_fit(size_t size) {
     for (bp = rover; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         /* if not allocated and block size >= size, set rover to the next bp and return current pointer */
         if ((!GET_ALLOC(HDRP(bp))) && GET_SIZE(HDRP(bp)) >= size) {
-            rover = bp;
+            rover = NEXT_BLKP(bp);
             return bp;
         }
     }
