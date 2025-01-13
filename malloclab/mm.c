@@ -151,10 +151,6 @@ static inline void *coalesce(void *bp)
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
-    int rover_is_next_free_alloc;
-
-    if (rover == NEXT_BLKP(bp))
-      rover_is_next_free_alloc = 1;
     
     /* if the prev and next blocks are both allocated  */
     if (prev_alloc && next_alloc) {
@@ -168,10 +164,6 @@ static inline void *coalesce(void *bp)
         /* change the size of current block header and new block footer */
         PUT(HDRP(bp), PACK(size, 0));                               // before and after coalescing, bp is not changed
         PUT(FTRP(bp), PACK(size, 0));                               // only the header size had been changed, so the footer is the new address
-	    //rover = NEXT_BLKP(bp);                                      // for next policy, old rover change to new coalesced rover
-	if (rover_is_next_free_alloc)
-        rover = bp;
-	    //rover = NEXT_BLKP(bp);
     }
 
     /* if only the previous block is free */
@@ -194,11 +186,6 @@ static inline void *coalesce(void *bp)
         PUT(FTRP(NEXT_BLKP(bp)), PACK(size, 0));
         /* bp point to the previous block's payload */
         bp = PREV_BLKP(bp);
-	    //rover = NEXT_BLKP(bp);                                     // for next fit policy, old rover change to new coleasced rover
-	    //rover = bp;
-	if (rover_is_next_free_alloc)
-	  rover = bp;
-	  //rover = NEXT_BLKP(bp);
     }
     //CHECKHEAP(__LINE__);
     return bp;
@@ -232,7 +219,6 @@ void *mm_malloc(size_t size)
     /* find if the free list has a free block can hold asize(find_fit) */
     if ((bp = find_fit(asize)) != NULL) {
         place(bp, asize);
-        rover = NEXT_BLKP(bp);
         head = GET(HDRP(bp));
         foot = GET(FTRP(bp));
         CHECKHEAP(__LINE__);
@@ -248,7 +234,6 @@ void *mm_malloc(size_t size)
         /*  put this request block to the fit free block and splitting the block 
         if rest block is satisfy the minimum request (16 bytes?) */
         place(bp, asize);
-        rover = NEXT_BLKP(bp);
     } else {
         return NULL;
     }
@@ -280,7 +265,7 @@ static inline void *nofind_fit1(size_t size) {
   * next fit - like first fit but search list starting where previous search finished
   * 
   */
-static inline void *find_fit(size_t size) {
+static inline void *find_next_fit(size_t size) {
     char *bp;
     /* from roverbp to the end */
     for (bp = rover; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
@@ -298,7 +283,7 @@ static inline void *find_fit(size_t size) {
 /* 
  * best fit, Search the list, choose the best free block: fits, with fewest bytes left over
  */
- static inline void *find_best_fit(size_t size) {
+ static inline void *find_fit(size_t size) {
     /* set minsizebp = NULL */
     char *minsizebp = NULL;
     char *bp;
@@ -374,24 +359,6 @@ void mm_free(void *ptr)
     CHECKHEAP(__LINE__);
 }
 
-void mm_nextfit_free(void *ptr) {
-    char *bp;
-    size_t size;
-    if (ptr == NULL)
-        return;
-    size = GET_SIZE(HDRP(ptr));
-    /* change allocated bit of ptr's header and footer */
-    PUT(HDRP(ptr), PACK(size, 0));
-    PUT(FTRP(ptr), PACK(size, 0));
-
-    /* bp = coalescing ptr */
-    bp = coalesce(ptr);
-    /* if rover == (char *)ptr and bp is point to the previous block, 
-    set rover point to the previous block  */
-    if ((rover == (char *)ptr) && (bp == PREV_BLKP(ptr)))
-        rover = bp;
-}
-
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  * if ptr is NULL, call malloc(size) 
@@ -404,7 +371,6 @@ void *mm_realloc(void *ptr, size_t size)
     void *newptr;
     size_t copysize;
     printf("in realloc where prt is %p, size is %d\n", ptr, size);
-    printf("before realloc rover is %p\n", rover);
     if ((newptr = mm_malloc(size)) == NULL)
         return NULL;
     //printf("checkcheck\n");
@@ -471,7 +437,6 @@ void mm_checkheap(int lineno)
         if (GET(HDRP(bp)) != GET(FTRP(bp))) {
             printf("[%d] Block Error: block header and footer are not matched at %p\n", lineno, bp);
             printf("-- the dismatch header and footer at %p is %zu and %zu\n", bp, GET(HDRP(bp)), GET(FTRP(bp)));
-            printf("-- when dismatch happen the rover is %p\n", rover);
             exit(1);
         }
 
