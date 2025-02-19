@@ -41,7 +41,7 @@ void mm_checkheap(int lineno);
  * If you want debugging output, use the following macro.  When you hand
  * in, remove the #define DEBUG line. 
  */
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG 
 # define CHECKHEAP(lineno) printf("%s\n", __func__); mm_checkheap(__LINE__);
 #else
@@ -135,13 +135,10 @@ static inline void *extend_heap(size_t words)
         return NULL;
     /* set current bp's header to (words*WSIZE)/0(new free block header) */
     PUT(HDRP(bp), PACK(asize, 0));
-    //printf("in extend_heap, bp header's address is %p\n", HDRP(bp));
     /* set current bp's footer to (words*WSIZE)/0(new free block footer) */
     PUT(FTRP(bp), PACK(asize, 0));
-    //printf("in extend_heap, bp's footer address is at %p\n", FTRP(bp));
     /* set the next block's head to 0/1(new epilogue header) */
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0,1));
-    //printf("extend_heap, bp's next header address at %p\n", NEXT_BLKP(bp));
     /* coalescing bp if the previous block is free */
     return coalesce(bp);
 } 
@@ -151,10 +148,10 @@ static inline void *coalesce(void *bp)
     size_t prev_alloc = GET_ALLOC(FTRP(PREV_BLKP(bp)));
     size_t next_alloc = GET_ALLOC(HDRP(NEXT_BLKP(bp)));
     size_t size = GET_SIZE(HDRP(bp));
-    
+
     /* if the prev and next blocks are both allocated  */
     if (prev_alloc && next_alloc) {
-        /* direct return */
+    /* direct return */
         return bp;
     }
     /* if only the next block is free */
@@ -163,7 +160,7 @@ static inline void *coalesce(void *bp)
         size += GET_SIZE(HDRP(NEXT_BLKP(bp)));
         /* change the size of current block header and new block footer */
         PUT(HDRP(bp), PACK(size, 0));                               // before and after coalescing, bp is not changed
-        PUT(FTRP(bp), PACK(size, 0));                               // only the header size had been changed, so the footer is the new address
+        PUT(FTRP(bp), PACK(size, 0));                               // only the header size had been changed, so the footer is the new address          
     }
 
     /* if only the previous block is free */
@@ -209,26 +206,21 @@ void *mm_malloc(size_t size)
         asize = 2 * DSIZE;
     } else {
         asize = DSIZE + ((size + (DSIZE - 1)) / DSIZE) * DSIZE;      // make sure we get correct answer
-	printf("size: %zu\n", size);
-        //printf("DSIZE: %zu\n", DSIZE);
-        //printf("(size + (DSIZE - 1)): %zu\n", size + (DSIZE - 1));
-        //printf("((size + (DSIZE - 1)) / DSIZE): %zu\n", (size + (DSIZE - 1)) / DSIZE);
-        printf("asize: %zu\n", asize);
-    }
+   }
 
     /* find if the free list has a free block can hold asize(find_fit) */
     if ((bp = find_fit(asize)) != NULL) {
         place(bp, asize);
-        head = GET(HDRP(bp));
-        foot = GET(FTRP(bp));
-        CHECKHEAP(__LINE__);
+	head = GET(HDRP(bp));
+	foot = GET(FTRP(bp));
+	CHECKHEAP(__LINE__);
         return bp;
     }
     /* if not find call extend_heap, put this request block to the new free block */
     extendsize = MAX(asize, CHUCKSIZE);
     if ((bp = extend_heap(extendsize/WSIZE)) != NULL) {
         head = GET(HDRP(bp));
-        foot = GET(FTRP(bp));
+	foot = GET(FTRP(bp));
 	
         CHECKHEAP(__LINE__);
         /*  put this request block to the fit free block and splitting the block 
@@ -246,7 +238,7 @@ void *mm_malloc(size_t size)
  * first try --- first fit
  * Search list from beginning, choose first free block that fits.
  */
-static inline void *nofind_fit1(size_t size) {
+static inline void *find_fit(size_t size) {
     char *bp;
     size_t currsize;
     /* from heap_listp to the end check evey block size */
@@ -263,7 +255,7 @@ static inline void *nofind_fit1(size_t size) {
 
  /*
   * next fit - like first fit but search list starting where previous search finished
-  * 
+  *
   */
 static inline void *find_next_fit(size_t size) {
     char *bp;
@@ -271,8 +263,7 @@ static inline void *find_next_fit(size_t size) {
     for (bp = rover; GET_SIZE(HDRP(bp)) > 0; bp = NEXT_BLKP(bp)) {
         /* if not allocated and block size >= size, set rover to the next bp and return current pointer */
         if ((!GET_ALLOC(HDRP(bp))) && GET_SIZE(HDRP(bp)) >= size) {
-            //rover = NEXT_BLKP(bp);
-            printf("the next rover set in find_fit is %p\n", rover);
+            rover = bp;
             return bp;
         }
     }
@@ -283,7 +274,7 @@ static inline void *find_next_fit(size_t size) {
 /* 
  * best fit, Search the list, choose the best free block: fits, with fewest bytes left over
  */
- static inline void *find_fit(size_t size) {
+ static inline void *find_best_fit(size_t size) {
     /* set minsizebp = NULL */
     char *minsizebp = NULL;
     char *bp;
@@ -322,21 +313,13 @@ static inline void place(void *bp, size_t size) {
     if (difsize >= splitsize) {
         PUT(HDRP(bp), PACK(size, 1));
         PUT(FTRP(bp), PACK(size, 1));
-        printf("in place function, bp header at %p\n", HDRP(bp));
-        printf("in place function, bp size is %d\n", GET_SIZE(HDRP(bp)));
-        printf("in place function, bp footer at %p\n", FTRP(bp));
 
         PUT(HDRP(NEXT_BLKP(bp)), PACK(difsize, 0));
         PUT(FTRP(NEXT_BLKP(bp)), PACK(difsize, 0));
-        printf("in place function, bp next head at %p\n", HDRP(NEXT_BLKP(bp)));
-        printf("in place function, bp next block size is %d\n", GET_SIZE(HDRP(NEXT_BLKP(bp))));
-        printf("in place function, bp next footer at %p\n", FTRP(NEXT_BLKP(bp)));
-    } else {
+   } else {
         /* if block size - size < minisizefree not split, just change bp's header and footer's allocate bit and size */
         PUT(HDRP(bp), PACK(currsize, 1));
-        printf("in place function, bp header at %p\n", HDRP(bp));
         PUT(FTRP(bp), PACK(currsize, 1));
-        printf("in place function, bp footer at %p\n", FTRP(bp));
     }
     //CHECKHEAP(__LINE__);
 }
@@ -359,44 +342,42 @@ void mm_free(void *ptr)
     CHECKHEAP(__LINE__);
 }
 
+void mm_nextfit_free(void *ptr) {
+    char *bp;
+    size_t size;
+    if (ptr == NULL)
+        return;
+    size = GET_SIZE(HDRP(ptr));
+    /* change allocated bit of ptr's header and footer */
+    PUT(HDRP(ptr), PACK(size, 0));
+    PUT(FTRP(ptr), PACK(size, 0));
+
+    /* bp = coalescing ptr */
+    bp = coalesce(ptr);
+    /* if rover == (char *)ptr and bp is point to the previous block, 
+    set rover point to the previous block  */
+    if ((rover == (char *)ptr) && (bp == PREV_BLKP(ptr)))
+        rover = bp;
+}
+
 /*
  * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
  * if ptr is NULL, call malloc(size) 
  * if size == 0, call free(ptr) 
- * if ptr is NULL, call malloc(size)request size bytes memory from heap,
- * if pre is not NULL, using memcpy copy min(size, ptr's size) and free ptr return newptr
+ * if ptr is NULL, call malloc(size)request size bytes memory from heap, 
+ * memcpy min(size, ptr's size) and free ptr return newptr
  */
 void *mm_realloc(void *ptr, size_t size) 
 {
     void *newptr;
     size_t copysize;
-    printf("in realloc where prt is %p, size is %d\n", ptr, size);
     if ((newptr = mm_malloc(size)) == NULL)
         return NULL;
-    //printf("checkcheck\n");
     if (ptr == NULL) 
         return newptr;
     copysize = MIN(GET_SIZE(HDRP(ptr)), size);
     memcpy(newptr, ptr, copysize);
     mm_free(ptr);
-    CHECKHEAP(__LINE__);
-    return newptr;
-}
-
-void *mm_realloc1(void *ptr, size_t size)
-{
-    void *oldptr = ptr;
-    void *newptr;
-    size_t copySize;
-    
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
     return newptr;
 }
 
@@ -436,14 +417,14 @@ void mm_checkheap(int lineno)
         //check block head and footer information of the block are the same
         if (GET(HDRP(bp)) != GET(FTRP(bp))) {
             printf("[%d] Block Error: block header and footer are not matched at %p\n", lineno, bp);
-            printf("-- the dismatch header and footer at %p is %zu and %zu\n", bp, GET(HDRP(bp)), GET(FTRP(bp)));
+	    printf("-- the dismatch header and footer at %p is %zu and %zu\n", bp, GET(HDRP(bp)), GET(FTRP(bp)));
             exit(1);
         }
 
         //check the allocated block head and footer information of the block are the same
         if (GET_ALLOC(HDRP(bp)) == 1) {
             //except for the epilogue block, the block size is not allowed to be 0
-            if (GET_SIZE(HDRP(bp)) == 0) {
+	  if (GET_SIZE(HDRP(bp)) == 0) {
                 printf("[%d] Block Error: block size is illegal at %p\n", lineno, bp);
                 exit(1);
             }
