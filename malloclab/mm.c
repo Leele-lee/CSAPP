@@ -41,7 +41,7 @@ extern void mm_checkfreelist(int lineno);
  * If you want debugging output, use the following macro.  When you hand
  * in, remove the #define DEBUG line.
  */
-#define DEBUG
+// #define DEBUG
 #ifdef DEBUG
 // # define CHECKHEAP(lineno) printf("%s\n", __func__); mm_checkheap(__LINE__);
 #define CHECKHEAP(lineno)       \
@@ -75,9 +75,7 @@ extern void mm_checkfreelist(int lineno);
 /* For given bp, get the address of the previous and next free block bp given bp */
 #define GET_PRE(bp) GET(bp)
 #define GET_SUC(bp) GET(((unsigned int *)(bp) + 1))
-// #define GET_PRE_ADDRS(bp)  ((unsigned int *)(long)(mem_heap_lo() + GET(bp)))
 #define GET_PRE_ADDRS(bp) ((unsigned int *)((char *)mem_heap_lo() + GET(bp)))
-// #define GET_SUC_ADDRS(bp) ((unsigned int *)(long)(mem_heap_lo() + GET((unsigned int *)bp + 1)))
 #define GET_SUC_ADDRS(bp) ((unsigned int *)((char *)mem_heap_lo() + GET((unsigned int *)bp + 1)))
 
 /* Read and set the size and allocated fileds from address P */
@@ -86,9 +84,6 @@ extern void mm_checkfreelist(int lineno);
 #define GET_PREV_ALLOC(p) (GET(p) & 0x2)
 #define SET_PREV_ALLOC(p) (GET(p) |= 0x2)
 #define SET_PREV_FREE(p) (GET(p) &= ~0x2)
-
-// #define SET_PREV_NODE(curr_bp, val) (*(unsigned int *)(curr_bp) = ((unsigned int)(long)((val) - mem_heap_lo())))
-// #define SET_NEXT_NODE(curr_bp, val) (*(unsigned int *)((char *)curr_bp + WSIZE) = ((unsigned int)(long)((val) - mem_heap_lo())))
 
 /* Given block ptr bp, computer address of its header and footer */
 #define HDRP(bp) ((char *)(bp)-WSIZE)
@@ -132,7 +127,7 @@ static inline size_t find_index(size_t size);
 int mm_init(void)
 {
     free_lists = mem_heap_lo();
-    printf("in init, mem_heap_lo() is %p\n", mem_heap_lo());
+    // printf("in init, mem_heap_lo() is %p\n", mem_heap_lo());
     /* request 4 blocks from memory */
     if ((heap_listp = mem_sbrk(CLASS_SIZE * DSIZE + 4 * WSIZE)) == (void *)-1)
         return -1;
@@ -149,7 +144,7 @@ int mm_init(void)
     PUT(heap_listp + DSIZE * CLASS_SIZE + 3 * WSIZE, PACK(0, 3));
 
     heap_listp += (DSIZE * CLASS_SIZE + 2 * WSIZE);
-    printf("heap_listp at init should point to the middle of prologue is  %p\n", heap_listp);
+    // printf("heap_listp at init should point to the middle of prologue is  %p\n", heap_listp);
     rover = heap_listp; // set for next fit
     /* extend heap by CHUCKSIZE/WSIZE blocks at the end of the four blocks */
     if (extend_heap(CHUCKSIZE / WSIZE) == NULL)
@@ -178,13 +173,10 @@ static inline void *extend_heap(size_t words)
 
     /* set current bp's header to (words*WSIZE)/0(new free block header) */
     PUT(HDRP(bp), PACK_ALL(asize, prev_alloc, 0));
-    // printf("in extend_heap, bp header's address is %p\n", HDRP(bp));
     /* set current bp's footer to (words*WSIZE)/0(new free block footer) */
     PUT(FTRP(bp), PACK_ALL(asize, prev_alloc, 0));
-    // printf("in extend_heap, bp's footer address is at %p\n", FTRP(bp));
     /* set the next block's head to 0/1(new epilogue header) */
     PUT(HDRP(NEXT_BLKP(bp)), PACK(0, 1));
-    // printf("extend_heap, bp's next header address at %p\n", NEXT_BLKP(bp));
     /* coalescing bp if the previous block is free */
     return coalesce(bp);
 }
@@ -245,36 +237,9 @@ static inline void *coalesce(void *bp)
         /* bp point to the previous block's payload */
         bp = PREV_BLKP(bp);
     }
-    // CHECKHEAP(__LINE__);
-    //  and insert new block node to suitable free list
+    // and insert new block node to suitable free list
     insert_node(bp);
     return bp;
-}
-
-/* put relative address of prev node to current bp */
-static inline void set_prev_node(char *curr_bp, void *val)
-{
-    if (val == NULL)
-    {
-        *curr_bp = NULL;
-    }
-    else
-    {
-        *(unsigned int *)(curr_bp) = (long)((char *)(val) - (char *)mem_heap_lo());
-    }
-}
-
-/* Put relative address of next node to current bp */
-static inline void set_next_node(char *curr_bp, void *val)
-{
-    if (val == NULL)
-    {
-        *(unsigned int *)((char *)curr_bp + 4) = NULL;
-    }
-    else
-    {
-        *(unsigned int *)((char *)curr_bp + 4) = (unsigned int)(long)((val)-mem_heap_lo());
-    }
 }
 
 /*
@@ -292,7 +257,6 @@ static inline void insert_node(void *bp)
     free_lists[index] = bp;
     if (old_head != NULL)
     {
-        // set_prev_node(old_head, bp);
         PUT(old_head, (long)((char *)bp - (char *)mem_heap_lo()));
         PUT((unsigned int *)bp + 1, (long)((char *)old_head - (char *)mem_heap_lo()));
     }
@@ -301,10 +265,7 @@ static inline void insert_node(void *bp)
         PUT((unsigned int *)bp + 1, NULL);
     }
     // change bp's prev pointer points to NULL, next pointer points to the old head block
-    // set_prev_node(bp, NULL);
-    // set_next_node(bp, old_head);
     PUT(bp, NULL);
-    // PUT((unsigned int *)bp + 1, NULL);
 }
 
 static inline void delete_node(void *bp)
@@ -313,13 +274,11 @@ static inline void delete_node(void *bp)
     size_t index = find_index(size);
     char *prev_block_bp;
     char *next_block_bp;
-    char *real_prev_address;
-    char *real_next_address;
     char *old_bp = bp;
 
-    printf("in delete node, delete node bp at %p, size is %d\n", bp, size);
-    printf("in delete node, bp is %p, GET_PRE(bp) is %p, actual is %p\n", bp, GET_PRE(bp), *(unsigned int *)bp);
-    printf("in delete node, bp is %p, GET_SUC(bp) is %p, actual is %p\n", bp, GET_SUC(bp), *((unsigned int *)bp + 1));
+    // printf("in delete node, delete node bp at %p, size is %d\n", bp, size);
+    // printf("in delete node, bp is %p, GET_PRE(bp) is %p, actual is %p\n", bp, GET_PRE(bp), *(unsigned int *)bp);
+    // printf("in delete node, bp is %p, GET_SUC(bp) is %p, actual is %p\n", bp, GET_SUC(bp), *((unsigned int *)bp + 1));
     if (GET_PRE(bp) == NULL)
     {
         // if bp is only node in the free list, only change the head of list to NULL
@@ -332,38 +291,28 @@ static inline void delete_node(void *bp)
             // if bp has no prev but has success, set new head to next block and
             // change the prev pointer of the next block to NULL
             free_lists[index] = GET_SUC_ADDRS(bp);
-            printf("in delete node, free_lists[%d] = GET_SUC_ADDRS(bp); is equal %p\n", index, GET_SUC_ADDRS(bp));
+            // printf("in delete node, free_lists[%d] = GET_SUC_ADDRS(bp); is equal %p\n", index, GET_SUC_ADDRS(bp));
             next_block_bp = GET_SUC_ADDRS(bp);
-            // set_prev_node(next_block_bp, NULL);
             PUT(next_block_bp, NULL);
-            printf("delete node's bp at %p\n", bp);
-            // printf("delete nodebp's prev bp is at %p\n", prev_block_bp + mem_heap_lo());
-            printf("delete nodebp's next bp is at %p\n", next_block_bp);
+            // printf("delete node's bp at %p\n", bp);
+            // printf("delete nodebp's next bp is at %p\n", next_block_bp);
         }
     }
     else if (GET_SUC(bp) == NULL)
     {
         // if bp has no success block, change the previous block's succs pointer to NULL
         prev_block_bp = GET_PRE_ADDRS(bp);
-        printf("[%d] check the correctness of prev block bp's size in delete node: %d\n", __LINE__, GET_SIZE(HDRP(prev_block_bp)));
-        // set_next_node(prev_block_bp, NULL);
-        // bp = prev_block_bp;
+        // printf("[%d] check the correctness of prev block bp's size in delete node: %d\n", __LINE__, GET_SIZE(HDRP(prev_block_bp)));
         PUT((unsigned int *)prev_block_bp + 1, NULL);
     }
     else
     {
         // if bp in the middle of the free list, change the prev block of bp's next pointer points to bp's next pointer
         // and change the next block's prev pointer points to bp's prev pointer
-        // prev_block_bp = GET_PRE_ADDRS(bp);
-        // next_block_bp = GET_SUC_ADDRS(bp);
-        // set_next_node(prev_block_bp, next_block_bp);
-        // set_prev_node(next_block_bp, prev_block_bp);
-        prev_block_bp = GET_PRE(bp);
-        next_block_bp = GET_SUC(bp);
-        real_next_address = GET_SUC_ADDRS(bp);
-        real_prev_address = GET_PRE_ADDRS(bp);
-        PUT(real_next_address, (long)((char *)real_prev_address - (char *)mem_heap_lo()));
-        PUT((unsigned int *)real_prev_address + 1, (long)((char *)real_next_address - (char *)mem_heap_lo()));
+        next_block_bp = GET_SUC_ADDRS(bp);
+        prev_block_bp = GET_PRE_ADDRS(bp);
+        PUT(next_block_bp, (long)((char *)prev_block_bp - (char *)mem_heap_lo()));
+        PUT((unsigned int *)prev_block_bp + 1, (long)((char *)next_block_bp - (char *)mem_heap_lo()));
     }
     PUT(old_bp, NULL);
     PUT((unsigned int *)old_bp + 1, NULL);
@@ -404,16 +353,15 @@ void *mm_malloc(size_t size)
     else
     {
         // make sure add extra WSIZE to play as head
-        // asize = WSIZE + ((size + (DSIZE - 1)) / DSIZE) * DSIZE;
         asize = DSIZE * ((size + (WSIZE) + (DSIZE - 1)) / DSIZE);
-        printf("malloc size: %zu\n", size);
-        printf("malloc asize: %zu\n", asize);
+        // printf("malloc size: %zu\n", size);
+        // printf("malloc asize: %zu\n", asize);
     }
     /* find if the free list has a free block can hold asize(find_fit) */
     if ((bp = find_fit(asize)) != NULL)
     {
         place(bp, asize);
-        printf("malloc after find, bp at %p\n", bp);
+        // printf("malloc after find, bp at %p\n", bp);
         head = GET(HDRP(bp));
         CHECKHEAP(__LINE__);
         return bp;
@@ -424,7 +372,7 @@ void *mm_malloc(size_t size)
     {
         head = GET(HDRP(bp));
         foot = GET(FTRP(bp));
-        printf("malloc after extend_heap bp at %p\n", bp);
+        // printf("malloc after extend_heap bp at %p\n", bp);
         CHECKHEAP(__LINE__);
         /*  put this request block to the fit free block and splitting the block
         if rest block is satisfy the minimum request (16 bytes?) */
@@ -482,7 +430,6 @@ static inline void place(void *bp, size_t size)
     size_t splitsize = 2 * DSIZE;
     size_t currsize = GET_SIZE(HDRP(bp));
     size_t difsize = currsize - size;
-    // CHECKHEAP(__LINE__);
     /* if bp block size - size >= minisizefree split the free block, allocated size block
     : 1. change the allocated block's head 2. delete it from the free list
     the rest free block:
@@ -492,8 +439,8 @@ static inline void place(void *bp, size_t size)
     {
         // change the allocated block's head
         PUT(HDRP(bp), PACK_ALL(size, GET_PREV_ALLOC(HDRP(bp)), 1));
-        printf("in place function, bp header at %p\n", HDRP(bp));
-        printf("in place function, bp size is %d\n", GET_SIZE(HDRP(bp)));
+        // printf("in place function, bp header at %p\n", HDRP(bp));
+        // printf("in place function, bp size is %d\n", GET_SIZE(HDRP(bp)));
 
         // change free head and foot
         PUT(HDRP(NEXT_BLKP(bp)), PACK_ALL(difsize, 2, 0));
@@ -501,9 +448,9 @@ static inline void place(void *bp, size_t size)
 
         // insert free node in a suitable free list
         insert_node(NEXT_BLKP(bp));
-        printf("in place function, bp next head at %p\n", HDRP(NEXT_BLKP(bp)));
-        printf("in place function, bp next block size is %d\n", GET_SIZE(HDRP(NEXT_BLKP(bp))));
-        printf("in place function, bp next footer at %p\n", FTRP(NEXT_BLKP(bp)));
+        // printf("in place function, bp next head at %p\n", HDRP(NEXT_BLKP(bp)));
+        // printf("in place function, bp next block size is %d\n", GET_SIZE(HDRP(NEXT_BLKP(bp))));
+        // printf("in place function, bp next footer at %p\n", FTRP(NEXT_BLKP(bp)));
     }
     else
     {
@@ -517,10 +464,7 @@ static inline void place(void *bp, size_t size)
         {
             SET_PREV_ALLOC(FTRP(NEXT_BLKP(bp)));
         }
-        // printf("in place function, bp header at %p\n", HDRP(bp));
-        // printf("in place function, bp footer at %p\n", FTRP(bp));
     }
-    // CHECKHEAP(__LINE__);
 }
 
 /*
@@ -535,7 +479,7 @@ void mm_free(void *ptr)
 {
     size_t size;
     CHECKHEAP(__LINE__);
-    printf("free bp %p\n, free size %u\n", ptr, GET_SIZE(HDRP(ptr)));
+    // printf("free bp %p\n, free size %u\n", ptr, GET_SIZE(HDRP(ptr)));
     if (ptr == NULL)
         return;
     size = GET_SIZE(HDRP(ptr));
@@ -545,11 +489,6 @@ void mm_free(void *ptr)
     /* coalescing bp */
     char *after_coales_bp = coalesce(ptr);
     CHECKHEAP(__LINE__);
-    // int new_size = GET_SIZE(HDRP(after_coales_bp));
-    // size_t num = find_index(new_size);
-    // if (free_lists[num] != after_coales_bp) {
-    //   fprintf("Free list Error: after free free_lists[%d] = %p is not the correct bp: %p after coalescing\n", num, free_lists[num], after_coales_bp);
-    // }
 }
 
 /*
@@ -563,7 +502,7 @@ void *mm_realloc(void *ptr, size_t size)
 {
     void *newptr;
     size_t copysize;
-    printf("in realloc where prt is %p, size is %d\n", ptr, size);
+    // printf("in realloc where prt is %p, size is %d\n", ptr, size);
     if ((newptr = mm_malloc(size)) == NULL)
         return NULL;
     // printf("checkcheck\n");
