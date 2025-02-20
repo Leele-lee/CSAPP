@@ -313,6 +313,8 @@ static inline void delete_node(void *bp)
     size_t index = find_index(size);
     char *prev_block_bp;
     char *next_block_bp;
+    char *real_prev_address;
+    char *real_next_address;
     char *old_bp = bp;
 
     printf("in delete node, delete node bp at %p, size is %d\n", bp, size);
@@ -358,10 +360,10 @@ static inline void delete_node(void *bp)
         // set_prev_node(next_block_bp, prev_block_bp);
         prev_block_bp = GET_PRE(bp);
         next_block_bp = GET_SUC(bp);
-        bp = GET_SUC_ADDRS(bp);
-        PUT(bp, (long)((char *)prev_block_bp - (char *)mem_heap_lo()));
-        bp = GET_PRE_ADDRS(bp);
-        PUT((unsigned int *)bp + 1, (long)((char *)next_block_bp - (char *)mem_heap_lo()));
+        real_next_address = GET_SUC_ADDRS(bp);
+        real_prev_address = GET_PRE_ADDRS(bp);
+        PUT(real_next_address, (long)((char *)real_prev_address - (char *)mem_heap_lo()));
+        PUT((unsigned int *)real_prev_address + 1, (long)((char *)real_next_address - (char *)mem_heap_lo()));
     }
     PUT(old_bp, NULL);
     PUT((unsigned int *)old_bp + 1, NULL);
@@ -721,13 +723,13 @@ void mm_checkfreelist(int lineno)
             {
                 printf("[%d] Free List Error: block size not match index at %p\n", lineno, bp);
                 printf("-----block size is: %zu, index should be: %d, actual was: %d\n", size, find_index(size), i);
-                // exit(1);
+                exit(1);
             }
             // every block must not be allocted
             if (GET_ALLOC(HDRP(bp)) == 1)
             {
                 printf("[%d] Free List Error: block should not be allocated at %p\n", lineno, bp);
-                // exit(1);
+                exit(1);
             }
             if (GET_SUC(bp) == NULL)
             {
