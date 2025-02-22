@@ -288,8 +288,8 @@ static inline void delete_node(void *bp)
         }
         else
         {
-            // if bp has no prev but has success, set new head to next block and
-            // change the prev pointer of the next block to NULL
+            // if bp has no prev but has success, set succs block to new head and
+            // change the prev pointer of the succs block to NULL
             free_lists[index] = GET_SUC_ADDRS(bp);
             // printf("in delete node, free_lists[%d] = GET_SUC_ADDRS(bp); is equal %p\n", index, GET_SUC_ADDRS(bp));
             next_block_bp = GET_SUC_ADDRS(bp);
@@ -307,8 +307,8 @@ static inline void delete_node(void *bp)
     }
     else
     {
-        // if bp in the middle of the free list, change the prev block of bp's next pointer points to bp's next pointer
-        // and change the next block's prev pointer points to bp's prev pointer
+        // if bp in the middle of the free list, change the prev block's succs pointer points to bp's succs pointer
+        // and change the succs block's prev pointer points to bp's prev pointer
         next_block_bp = GET_SUC_ADDRS(bp);
         prev_block_bp = GET_PRE_ADDRS(bp);
         PUT(next_block_bp, (long)((char *)prev_block_bp - (char *)mem_heap_lo()));
