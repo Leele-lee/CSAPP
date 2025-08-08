@@ -5,8 +5,6 @@
 #define MAX_CACHE_SIZE 1049000
 #define MAX_OBJECT_SIZE 102400
 
-void *thread(void *vargp);
-
 /* You won't lose style points for including this long line in your code */
 static const char *user_agent_hdr = "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 Firefox/10.0.3\r\n";
 
@@ -35,9 +33,8 @@ int parse_url(char *url, char *host, char *path, char* port) {
     } else {
         strcpy(path, slash); 
     }*/
-    
-    strcpy(path, slash);
-    
+    strcpy(path, slash); 
+
     char res[MAXLINE];
 
     if (colon) {
@@ -88,7 +85,7 @@ void handle_request(int connfd) {
     //now proxy served as client
     clientfd = Open_clientfd(host, port);
     if (clientfd < 0) {
-        //Close(connfd);
+        Close(connfd);
         return;
     }
 
@@ -100,7 +97,7 @@ void handle_request(int connfd) {
 
     /* build request headers and send to server */
     // read requesr headers from client
-    while (Rio_readlineb(&rio, buf, MAXLINE) != 0) {
+    while (Rio_readlineb(&rio, buf, MAXLINE) > 0) {
         // when read empty line terminate headers --- "\r\n" break the loop
         if (strcmp(buf, "\r\n") == 0) break;
         
@@ -113,45 +110,38 @@ void handle_request(int connfd) {
             continue;
         }
         Rio_writen(clientfd, buf, strlen(buf));
-        printf("%s", buf); fflush(stdout);
     }
     printf("After read all headers from client and sent to server\n"); fflush(stdout);
 
-    sprintf(buf, "Host: %s\r\n%s", host, user_agent_hdr);
+    sprintf(buf, "Host: %s\r\nUser-Agent: %s\r\n", host, user_agent_hdr);
     Rio_writen(clientfd, buf, strlen(buf));
-    printf("%s", buf); fflush(stdout);
-
 
     sprintf(buf, "Connection: close\r\n");
     Rio_writen(clientfd, buf, strlen(buf));
-    printf("%s", buf); fflush(stdout);
-
 
     sprintf(buf, "Proxy-Connection: close\r\n\r\n");
     Rio_writen(clientfd, buf, strlen(buf));
-    printf("%s", buf); fflush(stdout);
 
 
     // accepet response from server and send to client
     Rio_readinitb(&server_rio, clientfd);
     ssize_t n;
-    while ((n = Rio_readnb(&server_rio, buf, MAXLINE)) != 0) {
-        //printf("Below is server response: \n"); fflush(stdout);
-        //printf("%s", buf); fflush(stdout);
+    while ((n = Rio_readnb(&server_rio, buf, MAXLINE)) > 0) {
+        printf("Below is server response: \n"); fflush(stdout);
+        printf("%s", buf); fflush(stdout);
         Rio_writen(connfd, buf, n);
     }
     Close(clientfd);
-    //Close(connfd);
+    Close(connfd);
 }
 
 int main(int argc, char **argv)
 {
     // Listening on given port and accept new connect from client 
     // and handle_request in a infinite loop
-    int listenfd, *connfdp;
+    int listenfd, connfd;
     struct sockaddr_storage clientaddr;
     socklen_t clientlen;
-    pthread_t tid;
 
     Signal(SIGPIPE, SIG_IGN);
     if (argc != 2) {
@@ -162,24 +152,7 @@ int main(int argc, char **argv)
         listenfd = Open_listenfd(argv[1]);
     }
     while (1) {
-        clientlen = sizeof(clientaddr);
-        connfdp = Malloc(sizeof(int));
-        *connfdp = Accept(listenfd, (SA*)&clientaddr, &clientlen);
-        Pthread_create(&tid, NULL, thread, connfdp);
+        connfd = Accept(listenfd, (SA*)&clientaddr, &clientlen);
+        handle_request(connfd);
     }
-    Close(listenfd);
-}
-
-/* Thread routine */
-void *thread(void *vargp) {
-    int connfd = *((int *)vargp);
-    printf("Thread %ld handling connfd %d\n", pthread_self(), connfd);
-
-    Pthread_detach(pthread_self());
-    Free(vargp);
-    handle_request(connfd);
-
-    printf("Thread %ld done with handling connfd %d\n", pthread_self(), connfd);
-    Close(connfd);
-    return NULL;
 }
