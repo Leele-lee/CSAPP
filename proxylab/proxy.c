@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "./csapp.h"
+#include "./cache.h"
 
 /* Recommended max cache and object sizes */
 #define MAX_CACHE_SIZE 1049000
@@ -28,14 +29,6 @@ int parse_url(char *url, char *host, char *path, char* port) {
     printf("colon: %s\n", colon);
     printf("slash: %s\n", slash);
 
-    /*if (slash == NULL) {
-        strcat(pos, "/");
-        slash = strstr(pos, "/");
-        strcpy(path, "/");
-    } else {
-        strcpy(path, slash); 
-    }*/
-    
     strcpy(path, slash);
     
     char res[MAXLINE];
@@ -76,6 +69,13 @@ void handle_request(int connfd) {
     sscanf(buf, "%s %s %s", method, url, version);
     printf("Before parse_url, we got method: %s, url: %s, version: %s\n", method, url, version);
 
+    // part III, if method is get and can find url in cache, data transfer in query_cache
+    if ((!strncmp(method, "GET", 3)) && (query_cache(url, rio) == 1)) {
+        printf("Find %s in cache memory\n", url); fflush(stdout);
+        return;
+    }
+    printf("This url: %s didn't in cache memory\n", url); fflush(stdout);
+
     char host[MAXLINE], path[MAXLINE], port[MAXLINE];
     int parse = parse_url(url, host, path, port);
     if (!parse) {
@@ -88,7 +88,6 @@ void handle_request(int connfd) {
     //now proxy served as client
     clientfd = Open_clientfd(host, port);
     if (clientfd < 0) {
-        //Close(connfd);
         return;
     }
 
@@ -117,7 +116,7 @@ void handle_request(int connfd) {
     }
     printf("After read all headers from client and sent to server\n"); fflush(stdout);
 
-    sprintf(buf, "Host: %s\r\n%s", host, user_agent_hdr);
+    sprintf(buf, "Host: %s\r\n%s", host, user_agent_hdr); //notice
     Rio_writen(clientfd, buf, strlen(buf));
     printf("%s", buf); fflush(stdout);
 
@@ -131,17 +130,33 @@ void handle_request(int connfd) {
     Rio_writen(clientfd, buf, strlen(buf));
     printf("%s", buf); fflush(stdout);
 
+    printf("clientfd is %ld\n", clientfd); fflush(stdout);
 
     // accepet response from server and send to client
     Rio_readinitb(&server_rio, clientfd);
     ssize_t n;
+
+    ssize_t total_size = 0;
+    int cacheable = 1;
+    char cache[MAX_OBJECT_SIZE];
+
     while ((n = Rio_readnb(&server_rio, buf, MAXLINE)) != 0) {
-        //printf("Below is server response: \n"); fflush(stdout);
-        //printf("%s", buf); fflush(stdout);
         Rio_writen(connfd, buf, n);
+
+        if (cacheable) {
+            if (total_size + n < MAX_OBJECT_SIZE) {
+                memcpy(cache + total_size, buf, n);
+                total_size += n;
+            } else {
+                cacheable = 0;
+            }
+        }
+    }
+    if (cacheable) {
+        printf("The url: %s is cacheable, total size is: %ld\n", url, total_size); fflush(stdout);
+        add_cache(url, cache, total_size);
     }
     Close(clientfd);
-    //Close(connfd);
 }
 
 int main(int argc, char **argv)
@@ -161,6 +176,9 @@ int main(int argc, char **argv)
     } else {
         listenfd = Open_listenfd(argv[1]);
     }
+
+    init_cache();
+
     while (1) {
         clientlen = sizeof(clientaddr);
         connfdp = Malloc(sizeof(int));

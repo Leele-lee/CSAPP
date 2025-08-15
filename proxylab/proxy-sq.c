@@ -113,7 +113,7 @@ void handle_request(int connfd) {
     }
     printf("After read all headers from client and sent to server\n"); fflush(stdout);
 
-    sprintf(buf, "Host: %s\r\nUser-Agent: %s\r\n", host, user_agent_hdr);
+    sprintf(buf, "Host: %s\r\n%s", host, user_agent_hdr);  //wrong
     Rio_writen(clientfd, buf, strlen(buf));
 
     sprintf(buf, "Connection: close\r\n");
