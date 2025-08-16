@@ -8,7 +8,7 @@ static int readcnt;   // shared object
 
 // mutex semaphores protect to access to the the shared readcnt
 // w semaphores protect access to the critical section that access the shared object
-static sem_t mutex, mutex_ts, w;  // mutex protect readcnt, w protect critical section
+static sem_t mutex, mutex_ts, w;  // mutex protect readcnt, mutex_ts protect timestamp
 
 
 void init_cache() {
